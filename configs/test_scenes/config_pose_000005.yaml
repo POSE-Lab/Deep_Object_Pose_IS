@@ -1,0 +1,60 @@
+topic_camera: "/dope/webcam/image_raw"
+topic_camera_info: "/dope/webcam/camera_info"
+topic_publishing: "dope"
+input_is_rectified: True
+downscale_height: 480
+
+weights: {
+    # "obj_1": /weights/net_weights.pth,
+    "obj_2": /weights/net_weights.pth,
+    # "obj_3": /weights/net_weights.pth,
+    "obj_4": /weights/net_weights.pth,
+    "obj_5": /weights/net_weights.pth
+}
+
+architectures: {
+    # "obj_1": dope,
+    "obj_2": dope,
+    # "obj_3": dope,
+    "obj_4": dope,
+    "obj_5": dope
+}
+
+dimensions: {
+    # "obj_1": [15.899969482421875, 24.85395050048828, 7.419580078125],
+    "obj_2": [6.614794921875, 20.2759033203125, 6.6885009765625],
+    # "obj_3": [9.778550720214843, 42.27000122070312, 7.41875],
+    "obj_4": [6.580763, 11.633094, 7.075945],
+    "obj_5": [18.394457, 24.826819999999998, 2.7396]
+}
+
+class_ids: {
+    # "obj_1": 1,
+    "obj_2": 2,
+    # "obj_3": 3,
+    "obj_4": 4,
+    "obj_5": 5
+}
+
+draw_colors: {
+    # "obj_1": [255, 0, 0],
+    "obj_2": [0, 255, 0],
+    # "obj_3": [0, 0, 255],
+    "obj_4": [255, 255, 0],
+    "obj_5": [255, 0, 255]
+}
+
+
+
+mesh_scales: {
+    # "obj_1": 0.001,
+    "obj_2": 0.001,
+    # "obj_3": 0.001,
+    "obj_4": 0.001,
+    "obj_5": 0.001
+}
+
+thresh_angle: 0.5
+thresh_map: 0.0001
+sigma: 3
+thresh_points: 0.1

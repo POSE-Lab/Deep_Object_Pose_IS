@@ -1,0 +1,320 @@
+diff --git a/requirements.txt b/requirements.txt
+index 984c65b..0d4b953 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -1,6 +1,6 @@
+ pyrr==0.10.3
+-torch==1.6.0
+-torchvision==0.7.0
++torch
++torchvision
+ numpy==1.17.4
+ scipy==1.5.2
+ opencv_python==4.4.0.44
+diff --git a/scripts/train2/inference.py b/scripts/train2/inference.py
+index 45c86a2..b42d4a9 100755
+--- a/scripts/train2/inference.py
++++ b/scripts/train2/inference.py
+@@ -15,7 +15,7 @@ import cv2
+ import numpy as np
+ from PIL import Image
+ from PIL import ImageDraw
+-
++import os 
+ import sys 
+ sys.path.append("inference")
+ from cuboid import Cuboid3d
+@@ -340,6 +340,9 @@ if __name__ == "__main__":
+     imgs = []
+     imgsname = []
+ 
++    if not os.path.exists(os.path.join(opt.data)):
++        print("Path", opt.data, "doesn't exist")
++        exit()
+     if not opt.data is None:
+         videopath = opt.data
+         for j in sorted(glob.glob(videopath+"/*.png")):
+diff --git a/scripts/train2/inference/cuboid.py b/scripts/train2/inference/cuboid.py
+index d819bea..bbb1583 100755
+--- a/scripts/train2/inference/cuboid.py
++++ b/scripts/train2/inference/cuboid.py
+@@ -22,6 +22,27 @@ class CuboidVertexType(IntEnum):
+     TotalCornerVertexCount = 8 # Corner vertexes doesn't include the center point
+     TotalVertexCount = 9
+ 
++                #     [right, top, rear],    # Front Top Right
++                # [right, top, front],     # Front Top Left
++                # [left, top, front],  # Front Bottom Left
++                # [left, top, rear], # Front Bottom Right
++                # [right, bottom, rear],     # Rear Top Right
++                # [right, bottom, front],      # Rear Top Left
++                # [left, bottom, front],   # Rear Bottom Left
++                # [left, bottom, rear],  # Rear Bottom Right  # Center
++# class CuboidVertexType(IntEnum):
++#     RearTopRight = 0
++#     FrontTopRight = 1
++#     FrontTopLeft = 2
++#     RearTopLeft = 3
++#     RearBottomRight = 4
++#     FrontBottomRight = 5
++#     FrontBottomLeft = 6
++#     RearBottomLeft = 7
++#     Center = 8
++#     TotalCornerVertexCount = 8 # Corner vertexes doesn't include the center point
++#     TotalVertexCount = 9
++
+ # List of the vertex indexes in each line edges of the cuboid
+ CuboidLineIndexes = [
+     # Front face
+@@ -77,31 +98,58 @@ class Cuboid3d():
+     def generate_vertexes(self):
+         width, height, depth = self.size3d
+ 
+-        # By default just use the normal OpenCV coordinate system
++        # # By default just use the normal OpenCV coordinate system
++        # if (self.coord_system is None):
++        #     cx, cy, cz = self.center_location
++        #     # X axis point to the right
++        #     right = cx + width / 2.0
++        #     left = cx - width / 2.0
++        #     # Y axis point downward
++        #     top = cy - height / 2.0
++        #     bottom = cy + height / 2.0
++        #     # Z axis point forward
++        #     front = cz + depth / 2.0
++        #     rear = cz - depth / 2.0
++
++        #     # List of 8 vertices of the box       
++        #     self._vertices = [
++        #         [right, top, front],    # Front Top Right
++        #         [left, top, front],     # Front Top Left
++        #         [left, bottom, front],  # Front Bottom Left
++        #         [right, bottom, front], # Front Bottom Right
++        #         [right, top, rear],     # Rear Top Right
++        #         [left, top, rear],      # Rear Top Left
++        #         [left, bottom, rear],   # Rear Bottom Left
++        #         [right, bottom, rear],  # Rear Bottom Right
++        #         self.center_location,   # Center
++        #     ]
++
+         if (self.coord_system is None):
++            print('COORD SYSTEM IS NONE')
+             cx, cy, cz = self.center_location
+             # X axis point to the right
+             right = cx + width / 2.0
+             left = cx - width / 2.0
+             # Y axis point downward
+-            top = cy - height / 2.0
+-            bottom = cy + height / 2.0
++            top = cy + height / 2.0
++            bottom = cy - height / 2.0
+             # Z axis point forward
+             front = cz + depth / 2.0
+             rear = cz - depth / 2.0
+ 
+             # List of 8 vertices of the box       
+             self._vertices = [
+-                [right, top, front],    # Front Top Right
+-                [left, top, front],     # Front Top Left
+-                [left, bottom, front],  # Front Bottom Left
+-                [right, bottom, front], # Front Bottom Right
+-                [right, top, rear],     # Rear Top Right
+-                [left, top, rear],      # Rear Top Left
+-                [left, bottom, rear],   # Rear Bottom Left
+-                [right, bottom, rear],  # Rear Bottom Right
+-                self.center_location,   # Center
++                [right, top, rear],    # Front Top Right
++                [right, top, front],     # Front Top Left
++                [left, top, front],  # Front Bottom Left
++                [left, top, rear], # Front Bottom Right
++                [right, bottom, rear],     # Rear Top Right
++                [right, bottom, front],      # Rear Top Left
++                [left, bottom, front],   # Rear Bottom Left
++                [left, bottom, rear],  # Rear Bottom Right  # Center
++                self.center_location,
+             ]
++
+         else:
+             sx, sy, sz = self.size3d
+             forward = np.array(self.coord_system.forward, dtype=float) * sy * 0.5
+diff --git a/scripts/train2/inference/detector.py b/scripts/train2/inference/detector.py
+index b4f47fa..b20059d 100755
+--- a/scripts/train2/inference/detector.py
++++ b/scripts/train2/inference/detector.py
+@@ -478,10 +478,15 @@ class ObjectDetector(object):
+         
+         # print(all_peaks)
+ 
+-        #print("find_object_poses:  found {} objects ================".format(len(objects)))
++        print("find_object_poses:  found {} objects ================".format(len(objects)))
+         for obj in objects:
+             # Run PNP
++            #print(obj)
+             points = obj[1] + [(obj[0][0]*scale_factor, obj[0][1]*scale_factor)]
++            # for p in points:
++            #     print(len(p))
++            # print(len(points))
++            print(points)
+             cuboid2d = np.copy(points)
+             location, quaternion, projected_points = pnp_solver.solve_pnp(points)
+ 
+@@ -753,6 +758,7 @@ class ObjectDetector(object):
+                             or best_angle < config.thresh_angle \
+                             and best_dist < objects[i_best][2][i_lists][1]:
+                         # set the points 
++                        #print('in find_objects', objects)
+                         objects[i_best][1][i_lists] = ((candidate[0])*scale_factor, (candidate[1])*scale_factor)
+                         # set information about the points: angle and distance
+                         objects[i_best][2][i_lists] = (best_angle, best_dist)
+diff --git a/scripts/train2/train.py b/scripts/train2/train.py
+index 828c705..6b38c87 100755
+--- a/scripts/train2/train.py
++++ b/scripts/train2/train.py
+@@ -137,7 +137,8 @@ parser.add_argument('--data1', default=None, help='path to dataset1')
+ parser.add_argument('--data2', default=None, help='path to dataset2')
+ parser.add_argument('--size1', default=None, help='size of dataset1 in percentage (0,1)')
+ parser.add_argument('--size2', default=None, help='size of dataset2 in percentage (0,1)')
+-parser.add_argument("--local_rank", type=int)
++parser.add_argument("--local-rank", default=0, type=int)
++parser.add_argument("--weight_save_freq", default=5, help="Frequency of saving the model weights. Default is every 5 epochs)")
+ 
+ # Read the config but do not overwrite the args written 
+ args, remaining_argv = conf_parser.parse_known_args()
+@@ -254,7 +255,7 @@ if not opt.save:
+     transform = transforms.Compose([
+                                AddRandomContrast(0.2),
+                                AddRandomBrightness(0.2),
+-                               transforms.Scale(opt.imagesize),
++                               transforms.Resize(opt.imagesize),
+                                ])
+ else:
+     contrast = 0.00001
+@@ -315,6 +316,7 @@ print (f"load data: {opt.datatest}")
+ trainingdata = None
+ 
+ if not opt.data == "":
++    print("here")
+     train_dataset = CleanVisiiDopeLoader(
+         opt.data,
+         sigma = opt.sigma,
+@@ -384,6 +386,7 @@ nb_update_network = 0
+ best_results = {"epoch":None,'passed':None,'add_mean':None,"add_std":None}
+ 
+ scaler = torch.cuda.amp.GradScaler() 
++log = {}
+ 
+ def _runnetwork(epoch,train_loader,train=True,syn=False):
+     global nb_update_network
+@@ -490,7 +493,7 @@ def _runnetwork(epoch,train_loader,train=True,syn=False):
+ 
+         #save one output of the network and one gt
+         # if False : 
+-        if batch_idx == 0 : 
++        if batch_idx % opt.loginterval == 0 : 
+ 
+             if train:
+                 post = "train"
+@@ -508,23 +511,31 @@ def _runnetwork(epoch,train_loader,train=True,syn=False):
+                         dataformats="CWH",
+                         )
+ 
++                    gt_save_folder = os.path.join(opt.outf, post+"_beliefs_gt", "epoch_"+str(epoch))
++                    if not os.path.exists(gt_save_folder):
++                        os.makedirs(gt_save_folder)
+                     # belief maps gt
+                     imgs = VisualizeBeliefMap(target_belief[i_output])
+-                    img,grid = save_image(imgs, "some_img.png", 
+-                        mean=0, std=1, nrow=3, save=False)
++                    img,grid = save_image(imgs, os.path.join(gt_save_folder, str(batch_idx)+".png"), 
++                        mean=0, std=1, nrow=3, save=True)
+                     writer.add_image(f"{post}_belief_ground_truth_{i_output}",
+                                 grid,
+                                 epoch, 
+                                 dataformats="CWH")
+-
++                    
++                    print("Saving GT belief maps to", gt_save_folder)
++                    preds_save_folder = os.path.join(opt.outf, post+"_beliefs_preds", "epoch_"+str(epoch))
++                    if not os.path.exists(preds_save_folder):
++                        os.makedirs(preds_save_folder)
+                     # belief maps guess
+                     imgs = VisualizeBeliefMap(output_belief[-1][i_output])
+-                    img,grid = save_image(imgs, "some_img.png", 
+-                        mean=0, std=1, nrow=3, save=False)
++                    img,grid = save_image(imgs, os.path.join(preds_save_folder, str(batch_idx)+".png"), 
++                        mean=0, std=1, nrow=3, save=True)
+                     writer.add_image(f"{post}_belief_guess_{i_output}",
+                                 grid,
+                                 epoch, 
+                                 dataformats="CWH")
++                    print("Saving predicted belief maps to", preds_save_folder)
+ 
+         if not train:
+             # TODO look into using batchsize > 1 when the input data is 
+@@ -592,6 +603,7 @@ def _runnetwork(epoch,train_loader,train=True,syn=False):
+             writer.add_scalar('loss/train_cls',np.mean(loss_avg_to_log["loss_class"]),epoch)
+             writer.add_scalar('loss/train_aff',np.mean(loss_avg_to_log["loss_affinities"]),epoch)
+             writer.add_scalar('loss/train_bel',np.mean(loss_avg_to_log["loss_belief"]),epoch)
++            log[str(epoch)+"_train"] = loss_avg_to_log
+         else:
+             # import pandas as pd
+             # add the loss
+@@ -600,6 +612,7 @@ def _runnetwork(epoch,train_loader,train=True,syn=False):
+             writer.add_scalar('loss/test_cls',np.mean(loss_avg_to_log["loss_class"]),epoch)
+             writer.add_scalar('loss/test_aff',np.mean(loss_avg_to_log["loss_affinities"]),epoch)
+             writer.add_scalar('loss/test_bel',np.mean(loss_avg_to_log["loss_belief"]),epoch)
++            log[str(epoch)+"_test"] = loss_avg_to_log
+ 
+ for epoch in range(1, opt.epochs + 1):
+ 
+@@ -612,14 +625,16 @@ for epoch in range(1, opt.epochs + 1):
+         _runnetwork(epoch,testingdata,train = False)
+         if opt.data == "":
+             break # lets get out of this if we are only testing
+-    try:
+-        if opt.local_rank == 0:
+-            if not opt.dontsave is True:
+-                torch.save(net.state_dict(), f'{opt.outf}/net_{opt.namefile}_{str(epoch).zfill(2)}.pth')
+-            else:
+-                torch.save(net.state_dict(), f'{opt.outf}/net_{opt.namefile}.pth')
+-    except:
+-        pass
++    
++    if epoch % opt.weight_save_freq == 0:
++        try:
++            if opt.local_rank == 0:
++                if not opt.dontsave is True:
++                    torch.save(net.state_dict(), f'{opt.outf}/net_{opt.namefile}_{str(epoch).zfill(2)}.pth')
++                else:
++                    torch.save(net.state_dict(), f'{opt.outf}/net_{opt.namefile}.pth')
++        except:
++            pass
+ 
+     if not opt.nbupdates is None and nb_update_network > int(opt.nbupdates):
+         break
+@@ -628,3 +643,12 @@ if opt.local_rank == 0:
+     torch.save(net.state_dict(), f'{opt.outf}/net_{opt.namefile}_{str(epoch).zfill(2)}.pth')
+ print ("end:" , datetime.datetime.now().time())
+ 
++log_save_folder = os.path.join(opt.outf, "log")
++if not os.path.exists(log_save_folder):
++    os.makedirs(log_save_folder)
++
++print("Saving log file to", log_save_folder)
++f = open(os.path.join(log_save_folder, "log_"+datetime.datetime.now().strftime("%Y%m%d_%H%M%S")+".json"), 'w')
++json.dump(log, f, indent=4)
++f.close()
++
+diff --git a/scripts/train2/utils_dope.py b/scripts/train2/utils_dope.py
+index 642ac07..fae469f 100755
+--- a/scripts/train2/utils_dope.py
++++ b/scripts/train2/utils_dope.py
+@@ -181,7 +181,7 @@ class CleanVisiiDopeLoader(data.Dataset):
+ 
+         def load_data(path,extensions):
+             imgs = loadimages(path,extensions = extensions)
+-
++            print(imgs)
+             # Check all the folders in path 
+             for name in os.listdir(str(path)):
+                 imgs += loadimages(path +"/"+name,extensions = extensions)
